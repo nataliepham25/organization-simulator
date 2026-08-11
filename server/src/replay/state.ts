@@ -4,7 +4,6 @@ import type {
   Organization,
 } from "../../../shared/src/types.js";
 import { monthsBetween } from "./dates.js";
-import { UNIQUE_ROLES } from "./constants.js";
 
 export interface TeamState {
   id: string;
@@ -20,8 +19,8 @@ export interface PersonState {
   employment_type: EmploymentType;
   manager_id: string | null;
   status: "active" | "left";
-  // Months-since-founding when they took their current role — drives the
-  // promotion-eligibility guardrail (MIN_MONTHS_IN_ROLE_BEFORE_PROMOTION).
+  // Months-since-founding when they took their current role — used by the
+  // generator's promotion-eligibility guardrail.
   role_since_month: number;
 }
 
@@ -41,12 +40,11 @@ export function initialState(org: Organization): OrgState {
   };
 }
 
-// The single reducer that advances state by one event. Never mutates its
-// input — always returns a new OrgState — so a caller can hold onto a prior
-// snapshot (e.g. "state as of last month") without it changing underneath
-// them. computeState() below is just this folded over a log; the tick
-// generator uses the exact same function to keep its own working state in
-// sync as it decides what to generate next.
+// The single reducer that advances state by one event — the "single source
+// of truth" CLAUDE.md calls for, used for current state, state as of a past
+// date, and (in the generator) in-progress simulated state, all the same
+// way. Never mutates its input — always returns a new OrgState — so a
+// caller can hold onto a prior snapshot without it changing underneath them.
 export function applyEvent(state: OrgState, event: NewEvent): OrgState {
   const monthsSinceFounding = monthsBetween(
     state.org.founded_at,
@@ -138,14 +136,4 @@ export function computeState(
 
 export function activePeople(state: OrgState): PersonState[] {
   return [...state.people.values()].filter((p) => p.status === "active");
-}
-
-// A role is available if it isn't a unique role at all, or no currently
-// active person holds it. Checked before every hire and promotion.
-export function isRoleAvailable(state: OrgState, role: string): boolean {
-  if (!UNIQUE_ROLES.has(role)) return true;
-  for (const person of state.people.values()) {
-    if (person.status === "active" && person.role === role) return false;
-  }
-  return true;
 }

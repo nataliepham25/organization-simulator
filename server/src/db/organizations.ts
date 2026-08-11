@@ -12,6 +12,9 @@ const insertStmt = db.prepare(`
 `);
 
 const selectByIdStmt = db.prepare(`SELECT * FROM organizations WHERE id = ?`);
+const selectFirstStmt = db.prepare(
+  `SELECT * FROM organizations ORDER BY rowid ASC LIMIT 1`,
+);
 
 export function createOrganization(input: {
   id?: string;
@@ -31,4 +34,12 @@ export function createOrganization(input: {
 
 export function getOrganization(id: string): Organization | undefined {
   return selectByIdStmt.get(id) as Organization | undefined;
+}
+
+// This app deliberately has no multi-org support (see CLAUDE.md) — routes
+// that need "the" org call this instead of taking an org_id from the
+// request. Returns whichever org was created first if more than one
+// somehow exists; in normal use there's exactly one.
+export function getSingleOrganization(): Organization | undefined {
+  return selectFirstStmt.get() as Organization | undefined;
 }

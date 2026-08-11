@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { NewEvent } from "../../../shared/src/types.js";
+import { activePeople, applyEvent, type OrgState, type PersonState } from "../replay/state.js";
 import {
   DEPARTURE_PROBABILITY_PER_PERSON_PER_MONTH,
   DEPARTURE_REASONS,
@@ -18,15 +19,21 @@ import {
   TEAM_HIRE_WEIGHTS,
   TEAM_ROLE_CATALOG,
   TRANSFER_PROBABILITY_PER_PERSON_PER_MONTH,
+  UNIQUE_ROLES,
 } from "./constants.js";
 import { chance, pick, pickWeighted, type Rng } from "./rng.js";
-import {
-  activePeople,
-  applyEvent,
-  isRoleAvailable,
-  type OrgState,
-  type PersonState,
-} from "./state.js";
+
+// A role is available if it isn't a unique role at all, or no currently
+// active person holds it. This is a generation-time guardrail (the replay
+// module doesn't need to know "unique role" is a concept), checked before
+// every hire.
+function isRoleAvailable(state: OrgState, role: string): boolean {
+  if (!UNIQUE_ROLES.has(role)) return true;
+  for (const person of state.people.values()) {
+    if (person.status === "active" && person.role === role) return false;
+  }
+  return true;
+}
 
 export interface MonthContext {
   orgId: string;

@@ -54,6 +54,10 @@ const selectByOrgUpToStmt = db.prepare(
   `SELECT * FROM events WHERE org_id = ? AND sequence <= ? ORDER BY sequence ASC`,
 );
 
+const selectByOrgSinceStmt = db.prepare(
+  `SELECT * FROM events WHERE org_id = ? AND sequence > ? ORDER BY sequence ASC`,
+);
+
 export function insertEvent(event: NewEvent): OrgEvent {
   const result = insertStmt.run({
     org_id: event.org_id,
@@ -66,13 +70,25 @@ export function insertEvent(event: NewEvent): OrgEvent {
 }
 
 // Reads back an org's event log in sequence order, optionally truncated to
-// events up through a given sequence — the primitive computeState(events,
-// upToSequence) will replay over in a later phase.
+// events up through a given sequence — the primitive replay/state.ts's
+// computeState() folds over.
 export function getEvents(orgId: string, upToSequence?: number): OrgEvent[] {
   const rows = (
     upToSequence === undefined
       ? selectByOrgStmt.all(orgId)
       : selectByOrgUpToStmt.all(orgId, upToSequence)
+  ) as EventRow[];
+  return rows.map(rowToEvent);
+}
+
+// Incremental-sync primitive: events strictly after a given sequence, in
+// order — "what's new since I last synced" — as opposed to getEvents'
+// upToSequence, which is "everything through a point" for replay.
+export function getEventsSince(orgId: string, sinceSequence?: number): OrgEvent[] {
+  const rows = (
+    sinceSequence === undefined
+      ? selectByOrgStmt.all(orgId)
+      : selectByOrgSinceStmt.all(orgId, sinceSequence)
   ) as EventRow[];
   return rows.map(rowToEvent);
 }

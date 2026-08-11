@@ -1,12 +1,22 @@
 import { getEvents, insertEvent } from "../db/events.js";
 import { getOrganization } from "../db/organizations.js";
-import { addMonths, monthsBetween, randomDayInMonth } from "./dates.js";
-import { createRng } from "./rng.js";
-import { activePeople, applyEvent, computeState } from "./state.js";
+import { addMonths, monthsBetween } from "../replay/dates.js";
+import { activePeople, applyEvent, computeState } from "../replay/state.js";
+import { createRng, type Rng } from "./rng.js";
 import { generateEventsForMonth } from "./tick.js";
 
 const DEFAULT_MONTHS_TO_SIMULATE = 24;
 const DEFAULT_RNG_SEED = 20260811;
+
+// Picks a plausible day within a given month (1-28, side-stepping
+// month-length edge cases) so generated events don't all fall on the 1st.
+function randomDayInMonth(monthStartIso: string, rng: Rng): string {
+  const d = new Date(monthStartIso);
+  const day = 1 + Math.floor(rng() * 28);
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), day),
+  ).toISOString();
+}
 
 function main(): void {
   const orgId = process.argv[2];
