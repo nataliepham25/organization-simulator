@@ -1,0 +1,97 @@
+import type { EmploymentType } from "../../../shared/src/types.js";
+
+// Roles that may be held by at most one active person, org-wide, at a time.
+// Enforced by isRoleAvailable() in state.ts before every hire and promotion.
+// Note CEO never appears in TEAM_ROLE_CATALOG or PROMOTION_LADDER below — the
+// random generator never attempts to assign it, so this guard is defense in
+// depth rather than something that fires in a normal run (Adam is seeded as
+// CEO by hand; if he ever left via random departure, this is what would
+// prevent a second CEO from silently being hired into the vacancy by role
+// name collision, even though nothing currently tries to fill it).
+export const UNIQUE_ROLES: ReadonlySet<string> = new Set(["CEO"]);
+
+// ---- Hiring: logistic ("S-curve") growth model ----
+// Probability of at least one hire in a given month, as a function of months
+// since founding. Low near HIRE_BASE_PROBABILITY early on, rises fastest
+// around HIRE_GROWTH_MIDPOINT_MONTHS, flattens out approaching
+// HIRE_MAX_PROBABILITY — mirrors how startup headcount growth tends to look:
+// slow at first, an inflection where hiring accelerates, then leveling off
+// rather than growing without bound.
+export const HIRE_BASE_PROBABILITY = 0.15;
+export const HIRE_MAX_PROBABILITY = 0.85;
+export const HIRE_GROWTH_MIDPOINT_MONTHS = 18;
+export const HIRE_GROWTH_STEEPNESS = 0.22;
+
+// Once a month "wins" a hire, chance of an additional hire landing the same
+// month (a hiring push), each further one less likely than the last.
+export const EXTRA_HIRE_PROBABILITY = 0.3;
+export const MAX_HIRES_PER_MONTH = 4;
+
+// ---- Departures ----
+export const DEPARTURE_PROBABILITY_PER_PERSON_PER_MONTH = 0.02;
+
+export const DEPARTURE_REASONS: readonly string[] = [
+  "pursued another opportunity",
+  "relocated",
+  "career change",
+  "personal reasons",
+  "role was eliminated",
+];
+
+// ---- Promotions ----
+export const PROMOTION_PROBABILITY_PER_PERSON_PER_MONTH = 0.02;
+export const MIN_MONTHS_IN_ROLE_BEFORE_PROMOTION = 6;
+
+// Current role -> next role. A role with no entry here has topped out and is
+// never promoted further by the generator.
+export const PROMOTION_LADDER: Readonly<Record<string, string>> = {
+  "Software Engineer": "Senior Software Engineer",
+  "Senior Software Engineer": "Staff Software Engineer",
+  "Product Designer": "Senior Product Designer",
+  "Growth Strategist": "Senior Growth Strategist",
+  "Account Executive": "Senior Account Executive",
+};
+
+// ---- Team transfers ----
+export const TRANSFER_PROBABILITY_PER_PERSON_PER_MONTH = 0.01;
+
+// ---- New hire composition ----
+export const EMPLOYMENT_TYPE_WEIGHTS: ReadonlyArray<{
+  value: EmploymentType;
+  weight: number;
+}> = [
+  { value: "full_time", weight: 0.85 },
+  { value: "part_time", weight: 0.1 },
+  { value: "contractor", weight: 0.05 },
+];
+
+// Relative likelihood a given hire lands on each team (must already exist —
+// generateHire() only ever picks from teams present in current state).
+export const TEAM_HIRE_WEIGHTS: Readonly<Record<string, number>> = {
+  Engineering: 0.5,
+  GTM: 0.25,
+  Design: 0.15,
+  Leadership: 0.1,
+};
+
+// What role a new hire on a given team gets. CEO is deliberately absent from
+// every list here — see the UNIQUE_ROLES comment above.
+export const TEAM_ROLE_CATALOG: Readonly<Record<string, readonly string[]>> =
+  {
+    Engineering: ["Software Engineer", "Senior Software Engineer"],
+    Design: ["Product Designer"],
+    GTM: ["Growth Strategist", "Account Executive"],
+    Leadership: ["Chief of Staff"],
+  };
+
+export const FIRST_NAMES: readonly string[] = [
+  "Alex", "Jordan", "Priya", "Wei", "Sofia", "Marcus", "Elena", "Noah",
+  "Aisha", "Diego", "Yuki", "Grace", "Omar", "Nina", "Liam", "Tara",
+  "Kenji", "Zara", "Felix", "Maya",
+];
+
+export const LAST_NAMES: readonly string[] = [
+  "Chen", "Okafor", "Rossi", "Patel", "Nguyen", "Ivanov", "Silva", "Kim",
+  "Haddad", "Larsen", "Moreno", "Dubois", "Kowalski", "Abara", "Fischer",
+  "Reyes", "Novak", "Sato", "Adeyemi", "Bianchi",
+];

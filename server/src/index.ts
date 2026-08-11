@@ -1,6 +1,6 @@
 import express from "express";
 import type { HealthCheckResponse } from "../../shared/src/types.js";
-import { db } from "./db.js";
+import { db } from "./db/connection.js";
 
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
