@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import type { EventsResponse } from "../../../shared/src/types.js";
 import { getEventsSince } from "../db/events.js";
 import { getSingleOrganization } from "../db/organizations.js";
 
@@ -26,5 +27,6 @@ export function handleGetEvents(req: Request, res: Response): void {
   }
 
   const events = getEventsSince(org.id, since);
-  res.json({ events });
+  const body: EventsResponse = { events };
+  res.json(body);
 }

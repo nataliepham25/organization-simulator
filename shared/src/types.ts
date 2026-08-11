@@ -101,3 +101,42 @@ export type NewEvent = {
     payload: EventPayloadMap[K];
   };
 }[EventType];
+
+// ---- API response shapes ----
+// Shared so the client can type fetch() results against exactly what the
+// server actually sends, rather than re-declaring a parallel copy that
+// could drift.
+
+export interface EventsResponse {
+  events: OrgEvent[];
+}
+
+export interface ApiErrorResponse {
+  error: string;
+}
+
+export interface OrgStatePerson {
+  id: string;
+  name: string;
+  role: string;
+  employment_type: EmploymentType;
+  manager_id: string | null;
+}
+
+export interface OrgStateTeam {
+  id: string;
+  name: string;
+  parent_team_id: string | null;
+  people: OrgStatePerson[];
+}
+
+export interface OrgStateProjection {
+  org: {
+    id: string;
+    name: string;
+    founded_at: string;
+    location: string;
+  };
+  as_of: string;
+  teams: OrgStateTeam[];
+}

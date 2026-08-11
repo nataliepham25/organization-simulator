@@ -1,35 +1,10 @@
 import type {
-  EmploymentType,
   NewEvent,
   Organization,
+  OrgStateProjection,
+  OrgStateTeam,
 } from "../../../shared/src/types.js";
 import { computeState } from "./state.js";
-
-export interface OrgStatePerson {
-  id: string;
-  name: string;
-  role: string;
-  employment_type: EmploymentType;
-  manager_id: string | null;
-}
-
-export interface OrgStateTeam {
-  id: string;
-  name: string;
-  parent_team_id: string | null;
-  people: OrgStatePerson[];
-}
-
-export interface OrgStateProjection {
-  org: {
-    id: string;
-    name: string;
-    founded_at: string;
-    location: string;
-  };
-  as_of: string;
-  teams: OrgStateTeam[];
-}
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
