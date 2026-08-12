@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { OrgEvent } from "../../shared/src/types.js";
 import OrgChart from "./components/OrgChart.js";
 import Timeline from "./components/Timeline.js";
@@ -21,6 +21,12 @@ function App() {
 
   const [generating, setGenerating] = useState(false);
   const [tickResult, setTickResult] = useState<string | null>(null);
+  // The `disabled` attribute alone isn't enough to stop a fast double-click:
+  // React's state update isn't applied to the DOM synchronously, so a second
+  // click that fires before re-render can still reach the handler with the
+  // component still believing generating=false. A ref is mutated immediately,
+  // not batched, so it closes that gap regardless of render timing.
+  const generatingRef = useRef(false);
 
   // Fetched once, here, and passed down — the Timeline renders it directly;
   // the Org Chart only reads dates/sequences off it to drive the scrubber.
@@ -49,6 +55,8 @@ function App() {
   // so the roster visibly reflects the tick rather than sitting on stale
   // data until someone happens to drag the scrubber.
   async function handleSimulateNextSync(): Promise<void> {
+    if (generatingRef.current) return;
+    generatingRef.current = true;
     setGenerating(true);
     setTickResult(null);
     try {
@@ -65,6 +73,7 @@ function App() {
     } catch (err: unknown) {
       setTickResult(`Failed to generate tick: ${String(err)}`);
     } finally {
+      generatingRef.current = false;
       setGenerating(false);
     }
   }
