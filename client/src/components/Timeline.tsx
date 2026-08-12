@@ -4,9 +4,10 @@ import { buildEventContext, categoryFor, CATEGORY_SYMBOL, describeEvent } from "
 
 interface TimelineProps {
   events: OrgEvent[];
+  onSelectEvent: (event: OrgEvent) => void;
 }
 
-function Timeline({ events }: TimelineProps) {
+function Timeline({ events, onSelectEvent }: TimelineProps) {
   const ctx = useMemo(() => buildEventContext(events), [events]);
 
   if (events.length === 0) {
@@ -22,14 +23,27 @@ function Timeline({ events }: TimelineProps) {
       <div className="card-head">
         <div className="label">Event log — append only</div>
         <div className="desc">
-          Every change to the org, in the order it happened. This is the source of truth.
+          Every change to the org, in the order it happened. This is the source of truth. Click a
+          row to see the org chart at that point.
         </div>
       </div>
       <div>
         {events.map((event) => {
           const category = categoryFor(event);
           return (
-            <div className="log-row" key={event.id}>
+            <div
+              className="log-row"
+              key={event.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectEvent(event)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectEvent(event);
+                }
+              }}
+            >
               <div className="log-seq">#{String(event.sequence).padStart(3, "0")}</div>
               <div className={`log-marker ${category}`}>{CATEGORY_SYMBOL[category]}</div>
               <div className="log-date">{event.occurred_at.slice(0, 10)}</div>

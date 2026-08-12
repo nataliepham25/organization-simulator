@@ -12,6 +12,13 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // The Org Chart's scrubber position, lifted up here (by sequence number,
+  // not array index or date — see OrgChart.tsx) so Timeline can move it too.
+  // Both interaction paths funnel into this one setter, which is what makes
+  // "reuse the existing render" true: OrgChart has exactly one effect that
+  // reacts to this value, regardless of who changed it.
+  const [selectedSequence, setSelectedSequence] = useState<number | null>(null);
+
   // Fetched once, here, and passed down — the Timeline renders it directly;
   // the Org Chart only reads dates/sequences off it to drive the scrubber.
   // Neither view derives org state from it themselves — that always comes
@@ -20,11 +27,17 @@ function App() {
     fetchEvents()
       .then((data) => {
         setEvents(data);
+        setSelectedSequence(data[data.length - 1]?.sequence ?? null);
         setError(null);
       })
       .catch((err: unknown) => setError(String(err)))
       .finally(() => setLoading(false));
   }, []);
+
+  function handleSelectEvent(event: OrgEvent): void {
+    setSelectedSequence(event.sequence);
+    setTab("orgchart");
+  }
 
   return (
     <div className="app">
@@ -65,7 +78,13 @@ function App() {
         </div>
       )}
 
-      {!loading && !error && (tab === "timeline" ? <Timeline events={events} /> : <OrgChart events={events} />)}
+      {!loading && !error && (
+        tab === "timeline" ? (
+          <Timeline events={events} onSelectEvent={handleSelectEvent} />
+        ) : (
+          <OrgChart events={events} selectedSequence={selectedSequence} onScrub={setSelectedSequence} />
+        )
+      )}
 
       <div className="app-footer">Backed by a live SQLite event log — no mock data.</div>
     </div>

@@ -28,9 +28,21 @@ export async function fetchEvents(since?: number): Promise<OrgEvent[]> {
   return body.events;
 }
 
-export async function fetchOrgState(asOf?: string): Promise<OrgStateProjection> {
-  const url =
-    asOf === undefined ? "/api/org-state" : `/api/org-state?asOf=${encodeURIComponent(asOf)}`;
-  const res = await fetch(url);
+export interface FetchOrgStateParams {
+  // Prefer upToSequence when a specific event is known — it's exact, unlike
+  // asOf, which can't distinguish between events sharing the same date.
+  upToSequence?: number;
+  asOf?: string;
+}
+
+export async function fetchOrgState(params: FetchOrgStateParams = {}): Promise<OrgStateProjection> {
+  const search = new URLSearchParams();
+  if (params.upToSequence !== undefined) {
+    search.set("upToSequence", String(params.upToSequence));
+  } else if (params.asOf !== undefined) {
+    search.set("asOf", params.asOf);
+  }
+  const qs = search.toString();
+  const res = await fetch(`/api/org-state${qs ? `?${qs}` : ""}`);
   return parseJsonOrThrow<OrgStateProjection>(res);
 }

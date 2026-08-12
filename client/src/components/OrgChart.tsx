@@ -5,31 +5,37 @@ import { fetchOrgState } from "../lib/api.js";
 
 interface OrgChartProps {
   events: OrgEvent[];
+  // Position is owned by the parent (by sequence number, not array index or
+  // date — sequence is the only value guaranteed unique per event, since
+  // several events can share a date) so Timeline can jump here too, through
+  // the same setter the scrubber itself uses.
+  selectedSequence: number | null;
+  onScrub: (sequence: number) => void;
 }
 
 const DEBOUNCE_MS = 120;
 
-function OrgChart({ events }: OrgChartProps) {
-  // The scrubber steps through actual event checkpoints (not arbitrary
-  // calendar days) so every position corresponds to a real change in the
-  // log — dragging always visibly moves something, rather than landing on
-  // long stretches of days where nothing happened.
-  const [sliderIndex, setSliderIndex] = useState(Math.max(events.length - 1, 0));
+function OrgChart({ events, selectedSequence, onScrub }: OrgChartProps) {
   const [orgState, setOrgState] = useState<OrgStateProjection | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setSliderIndex(Math.max(events.length - 1, 0));
-  }, [events.length]);
+  // The scrubber steps through actual event checkpoints (not arbitrary
+  // calendar days) so every position corresponds to a real change in the
+  // log — dragging always visibly moves something, rather than landing on
+  // long stretches of days where nothing happened.
+  const selectedEvent =
+    events.find((e) => e.sequence === selectedSequence) ?? events[events.length - 1];
 
-  const selectedEvent = events[sliderIndex];
-
+  // This is the one place org state gets fetched — whether selectedSequence
+  // changed because the slider was dragged or because a Timeline row was
+  // clicked, both go through the same onScrub/selectedSequence prop, so
+  // both land here. Nothing else fetches or renders org state.
   useEffect(() => {
     if (!selectedEvent) return;
     setLoading(true);
     const timeout = setTimeout(() => {
-      fetchOrgState(selectedEvent.occurred_at)
+      fetchOrgState({ upToSequence: selectedEvent.sequence })
         .then((data) => {
           setOrgState(data);
           setError(null);
@@ -59,10 +65,10 @@ function OrgChart({ events }: OrgChartProps) {
         </div>
         <input
           type="range"
-          min={0}
-          max={events.length - 1}
-          value={sliderIndex}
-          onChange={(e) => setSliderIndex(Number(e.target.value))}
+          min={events[0]!.sequence}
+          max={events[events.length - 1]!.sequence}
+          value={selectedEvent.sequence}
+          onChange={(e) => onScrub(Number(e.target.value))}
         />
         <div className="scrubber-bounds">
           <span>{events[0]!.occurred_at.slice(0, 10)}</span>

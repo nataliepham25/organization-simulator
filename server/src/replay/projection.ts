@@ -1,6 +1,6 @@
 import type {
-  NewEvent,
   Organization,
+  OrgEvent,
   OrgStateProjection,
   OrgStateTeam,
 } from "../../../shared/src/types.js";
@@ -23,20 +23,34 @@ export function resolveAsOfCutoff(asOf: string): number {
   return ms;
 }
 
-// Pure projection: replays an org's event log up to (and including) a given
-// date and shapes the result for API consumption — org info, teams, and
-// each team's currently-active people. No HTTP, no database access; takes
-// events as plain data so it can be unit tested or reused (e.g. by the
-// frontend, if events are ever fetched once and projected client-side)
-// without a network round trip per projection.
+export interface ProjectOrgStateOptions {
+  // Exact cutoff — replays events with sequence <= this value. Use this
+  // whenever the caller already knows a specific event (e.g. a UI scrubber
+  // bound to real log entries): unlike asOf, it can't be ambiguous, since
+  // sequence is unique per event and asOf's underlying date isn't (several
+  // events can share a date). Wins over asOf if both are given.
+  upToSequence?: number;
+  // Date-based cutoff — replays events with occurred_at <= end of this day.
+  asOf?: string;
+}
+
+// Pure projection: replays an org's event log up to a cutoff (by sequence or
+// by date — see ProjectOrgStateOptions) and shapes the result for API
+// consumption — org info, teams, and each team's currently-active people.
+// No HTTP, no database access; takes events as plain data so it can be unit
+// tested or reused (e.g. by the frontend, if events are ever fetched once
+// and projected client-side) without a network round trip per projection.
 export function projectOrgState(
   org: Organization,
-  events: readonly NewEvent[],
-  asOf?: string,
+  events: readonly OrgEvent[],
+  options: ProjectOrgStateOptions = {},
 ): OrgStateProjection {
-  let relevantEvents = events;
-  if (asOf !== undefined) {
-    const cutoffMs = resolveAsOfCutoff(asOf);
+  let relevantEvents: readonly OrgEvent[] = events;
+  if (options.upToSequence !== undefined) {
+    const upToSequence = options.upToSequence;
+    relevantEvents = events.filter((event) => event.sequence <= upToSequence);
+  } else if (options.asOf !== undefined) {
+    const cutoffMs = resolveAsOfCutoff(options.asOf);
     relevantEvents = events.filter(
       (event) => new Date(event.occurred_at).getTime() <= cutoffMs,
     );
@@ -59,6 +73,9 @@ export function projectOrgState(
       })),
   }));
 
+  const lastIncludedEvent = relevantEvents[relevantEvents.length - 1];
+  const as_of = options.asOf ?? lastIncludedEvent?.occurred_at ?? new Date().toISOString();
+
   return {
     org: {
       id: org.id,
@@ -66,7 +83,7 @@ export function projectOrgState(
       founded_at: org.founded_at,
       location: state.location,
     },
-    as_of: asOf ?? new Date().toISOString(),
+    as_of,
     teams,
   };
 }

@@ -161,6 +161,21 @@ body {
   border-bottom: none;
 }
 
+.log-row {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.log-row:hover,
+.log-row:focus-visible {
+  background: var(--surface-hover);
+}
+
+.log-row:focus-visible {
+  outline: 2px solid var(--accent-change);
+  outline-offset: -2px;
+}
+
 .log-seq {
   font-family: var(--mono);
   font-size: 12px;

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { NewEvent } from "../../../shared/src/types.js";
+import type { NewEvent, Organization } from "../../../shared/src/types.js";
+import { addMonths, monthsBetween } from "../replay/dates.js";
 import { activePeople, applyEvent, type OrgState, type PersonState } from "../replay/state.js";
 import {
   DEPARTURE_PROBABILITY_PER_PERSON_PER_MONTH,
