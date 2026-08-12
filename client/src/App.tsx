@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { OrgEvent } from "../../shared/src/types.js";
 import OrgChart from "./components/OrgChart.js";
 import Timeline from "./components/Timeline.js";
-import { fetchEvents } from "./lib/api.js";
+import { fetchEvents, generateTick } from "./lib/api.js";
 
 type Tab = "timeline" | "orgchart";
 
@@ -18,6 +18,9 @@ function App() {
   // "reuse the existing render" true: OrgChart has exactly one effect that
   // reacts to this value, regardless of who changed it.
   const [selectedSequence, setSelectedSequence] = useState<number | null>(null);
+
+  const [generating, setGenerating] = useState(false);
+  const [tickResult, setTickResult] = useState<string | null>(null);
 
   // Fetched once, here, and passed down — the Timeline renders it directly;
   // the Org Chart only reads dates/sequences off it to drive the scrubber.
@@ -39,6 +42,33 @@ function App() {
     setTab("orgchart");
   }
 
+  // Appends whatever the endpoint created onto the same `events` array both
+  // views already read from — no refetch of the whole log. Both views
+  // re-render because they're already downstream of this one array: Timeline
+  // gets new rows for free, and Org Chart is nudged to the new latest event
+  // so the roster visibly reflects the tick rather than sitting on stale
+  // data until someone happens to drag the scrubber.
+  async function handleSimulateNextSync(): Promise<void> {
+    setGenerating(true);
+    setTickResult(null);
+    try {
+      const newEvents = await generateTick();
+      if (newEvents.length > 0) {
+        setEvents((prev) => [...prev, ...newEvents]);
+        setSelectedSequence(newEvents[newEvents.length - 1]!.sequence);
+      }
+      setTickResult(
+        newEvents.length === 0
+          ? "Tick complete — no events this time."
+          : `Tick complete — ${newEvents.length} new event${newEvents.length === 1 ? "" : "s"}.`,
+      );
+    } catch (err: unknown) {
+      setTickResult(`Failed to generate tick: ${String(err)}`);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -48,21 +78,32 @@ function App() {
             Org state is never stored directly — it's always derived by replaying the event log.
           </p>
         </div>
-        <div className="tabs">
+        <div className="header-actions">
+          <div className="tabs">
+            <button
+              type="button"
+              className={`tab ${tab === "timeline" ? "active" : ""}`}
+              onClick={() => setTab("timeline")}
+            >
+              Timeline
+            </button>
+            <button
+              type="button"
+              className={`tab ${tab === "orgchart" ? "active" : ""}`}
+              onClick={() => setTab("orgchart")}
+            >
+              Org Chart
+            </button>
+          </div>
           <button
             type="button"
-            className={`tab ${tab === "timeline" ? "active" : ""}`}
-            onClick={() => setTab("timeline")}
+            className="simulate-button"
+            onClick={handleSimulateNextSync}
+            disabled={generating || loading}
           >
-            Timeline
+            {generating ? "Simulating..." : "Simulate next sync"}
           </button>
-          <button
-            type="button"
-            className={`tab ${tab === "orgchart" ? "active" : ""}`}
-            onClick={() => setTab("orgchart")}
-          >
-            Org Chart
-          </button>
+          {tickResult && <div className="tick-result">{tickResult}</div>}
         </div>
       </header>
 

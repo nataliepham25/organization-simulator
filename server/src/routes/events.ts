@@ -1,7 +1,12 @@
 import type { Request, Response } from "express";
 import type { EventsResponse } from "../../../shared/src/types.js";
-import { getEventsSince } from "../db/events.js";
+import { getEvents, getEventsSince, insertEvent } from "../db/events.js";
 import { getSingleOrganization } from "../db/organizations.js";
+import { GENERATE_TICK_SEED } from "../generation/constants.js";
+import { createRng } from "../generation/rng.js";
+import { runTick } from "../generation/tick.js";
+import { addMonths } from "../replay/dates.js";
+import { computeState } from "../replay/state.js";
 
 const SEQUENCE_PATTERN = /^\d+$/;
 
@@ -29,4 +34,35 @@ export function handleGetEvents(req: Request, res: Response): void {
   const events = getEventsSince(org.id, since);
   const body: EventsResponse = { events };
   res.json(body);
+}
+
+// POST /api/events/generate-tick — generates and persists exactly one more
+// simulated month for the org, picking up wherever its log currently ends.
+// This is the same operation simulate.ts's loop performs on each iteration
+// (both call runTick — see generation/tick.ts), just triggered once via the
+// UI instead of N times via the CLI. Responds with only the events this
+// call created, not the whole log.
+export function handleGenerateTick(_req: Request, res: Response): void {
+  const org = getSingleOrganization();
+  if (!org) {
+    res.status(404).json({ error: "No organization exists yet — run the seed script first." });
+    return;
+  }
+
+  const existingEvents = getEvents(org.id);
+  const lastEvent = existingEvents[existingEvents.length - 1];
+  if (!lastEvent) {
+    res.status(400).json({ error: "No existing events — seed the organization first." });
+    return;
+  }
+
+  const state = computeState(org, existingEvents);
+  const rng = createRng(GENERATE_TICK_SEED);
+  const cursor = addMonths(lastEvent.occurred_at, 1);
+
+  const newEvents = runTick(org, state, cursor, rng);
+  const inserted = newEvents.map((event) => insertEvent(event));
+
+  const body: EventsResponse = { events: inserted };
+  res.status(201).json(body);
 }

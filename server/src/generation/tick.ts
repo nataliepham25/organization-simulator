@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { NewEvent, Organization } from "../../../shared/src/types.js";
-import { addMonths, monthsBetween } from "../replay/dates.js";
+import { monthsBetween } from "../replay/dates.js";
 import { activePeople, applyEvent, type OrgState, type PersonState } from "../replay/state.js";
 import {
   DEPARTURE_PROBABILITY_PER_PERSON_PER_MONTH,
@@ -217,4 +217,37 @@ export function generateEventsForMonth(
   }
 
   return events;
+}
+
+// Picks a plausible day within a given month (1-28, side-stepping
+// month-length edge cases) so generated events don't all fall on the 1st.
+export function randomDayInMonth(monthStartIso: string, rng: Rng): string {
+  const d = new Date(monthStartIso);
+  const day = 1 + Math.floor(rng() * 28);
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), day),
+  ).toISOString();
+}
+
+// Generates one month's worth of events starting at `cursor` (the first of
+// that month) — the shared unit both simulate.ts's multi-month loop and the
+// POST /api/events/generate-tick endpoint call, so "the next tick" means
+// exactly one thing regardless of which caller asked for it. Whether the
+// caller threads one rng across many calls (simulate.ts, for a coherent
+// multi-month run) or creates a fresh one per call (the endpoint, one tick
+// per request) is entirely the caller's choice — this function has no
+// opinion on it, and does no persistence itself.
+export function runTick(
+  org: Organization,
+  state: OrgState,
+  cursor: string,
+  rng: Rng,
+): NewEvent[] {
+  const monthsSinceFounding = monthsBetween(org.founded_at, cursor);
+  const occurredAt = randomDayInMonth(cursor, rng);
+  return generateEventsForMonth(
+    state,
+    { orgId: org.id, occurredAt, monthsSinceFounding },
+    rng,
+  );
 }

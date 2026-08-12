@@ -76,6 +76,13 @@ body {
   max-width: 46ch;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .tabs {
   display: inline-flex;
   gap: 4px;
@@ -84,6 +91,34 @@ body {
   border-radius: 999px;
   padding: 4px;
   box-shadow: var(--shadow-card);
+}
+
+.simulate-button {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--tab-active-ink);
+  background: var(--accent-join);
+  border: none;
+  box-shadow: var(--shadow-card);
+  transition: opacity 0.15s ease;
+}
+
+.simulate-button:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.simulate-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.tick-result {
+  font-size: 12.5px;
+  color: var(--muted);
 }
 
 .tab {

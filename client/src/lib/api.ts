@@ -28,6 +28,15 @@ export async function fetchEvents(since?: number): Promise<OrgEvent[]> {
   return body.events;
 }
 
+// POST /api/events/generate-tick — asks the server to generate and persist
+// one more simulated month, and returns only the events that call created
+// (not the whole log), so the caller can append rather than refetch.
+export async function generateTick(): Promise<OrgEvent[]> {
+  const res = await fetch("/api/events/generate-tick", { method: "POST" });
+  const body = await parseJsonOrThrow<EventsResponse>(res);
+  return body.events;
+}
+
 export interface FetchOrgStateParams {
   // Prefer upToSequence when a specific event is known — it's exact, unlike
   // asOf, which can't distinguish between events sharing the same date.

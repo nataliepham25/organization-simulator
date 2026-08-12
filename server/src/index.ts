@@ -1,7 +1,7 @@
 import express from "express";
 import type { HealthCheckResponse } from "../../shared/src/types.js";
 import { db } from "./db/connection.js";
-import { handleGetEvents } from "./routes/events.js";
+import { handleGenerateTick, handleGetEvents } from "./routes/events.js";
 import { handleGetOrgState } from "./routes/orgState.js";
 
 const app = express();
@@ -21,6 +21,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.get("/api/events", handleGetEvents);
+app.post("/api/events/generate-tick", handleGenerateTick);
 app.get("/api/org-state", handleGetOrgState);
 
 app.listen(PORT, () => {
