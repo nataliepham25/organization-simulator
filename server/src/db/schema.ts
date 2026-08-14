@@ -9,7 +9,13 @@ CREATE TABLE IF NOT EXISTS organizations (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   founded_at TEXT NOT NULL,
-  location TEXT NOT NULL
+  location TEXT NOT NULL,
+  -- Scheduler bookkeeping for POST /api/events/generate-tick: which
+  -- simulated month to generate next. NOT part of the org domain model
+  -- (see CLAUDE.md) — it never feeds computeState() and holds no org fact,
+  -- just "where the generator left off," so a month that rolls zero events
+  -- still advances it instead of the next click re-rolling the same month.
+  next_tick_month TEXT
 );
 
 CREATE TABLE IF NOT EXISTS events (

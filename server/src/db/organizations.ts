@@ -15,6 +15,12 @@ const selectByIdStmt = db.prepare(`SELECT * FROM organizations WHERE id = ?`);
 const selectFirstStmt = db.prepare(
   `SELECT * FROM organizations ORDER BY rowid ASC LIMIT 1`,
 );
+const selectNextTickMonthStmt = db.prepare(
+  `SELECT next_tick_month FROM organizations WHERE id = ?`,
+);
+const updateNextTickMonthStmt = db.prepare(
+  `UPDATE organizations SET next_tick_month = @nextTickMonth WHERE id = @id`,
+);
 
 export function createOrganization(input: {
   id?: string;
@@ -42,4 +48,18 @@ export function getOrganization(id: string): Organization | undefined {
 // somehow exists; in normal use there's exactly one.
 export function getSingleOrganization(): Organization | undefined {
   return selectFirstStmt.get() as Organization | undefined;
+}
+
+// Scheduler bookkeeping, not org domain data — see the next_tick_month
+// comment in schema.ts. Not exposed on the Organization type or any API
+// response; only /api/events/generate-tick reads and writes it.
+export function getNextTickMonth(orgId: string): string | null {
+  const row = selectNextTickMonthStmt.get(orgId) as
+    | { next_tick_month: string | null }
+    | undefined;
+  return row?.next_tick_month ?? null;
+}
+
+export function setNextTickMonth(orgId: string, nextTickMonth: string): void {
+  updateNextTickMonthStmt.run({ id: orgId, nextTickMonth });
 }

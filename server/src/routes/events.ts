@@ -1,11 +1,15 @@
 import type { Request, Response } from "express";
 import type { EventsResponse } from "../../../shared/src/types.js";
 import { getEvents, getEventsSince, insertEvent } from "../db/events.js";
-import { getSingleOrganization } from "../db/organizations.js";
+import {
+  getNextTickMonth,
+  getSingleOrganization,
+  setNextTickMonth,
+} from "../db/organizations.js";
 import { GENERATE_TICK_SEED } from "../generation/constants.js";
 import { createRng } from "../generation/rng.js";
 import { runTick } from "../generation/tick.js";
-import { addMonths } from "../replay/dates.js";
+import { addMonths, monthsBetween } from "../replay/dates.js";
 import { computeState } from "../replay/state.js";
 
 const SEQUENCE_PATTERN = /^\d+$/;
@@ -57,11 +61,18 @@ export function handleGenerateTick(_req: Request, res: Response): void {
   }
 
   const state = computeState(org, existingEvents);
-  const rng = createRng(GENERATE_TICK_SEED);
-  const cursor = addMonths(lastEvent.occurred_at, 1);
+  // The next month to simulate is tracked independently of the event log
+  // (see next_tick_month in schema.ts) — a month that generates zero events
+  // still has to advance the cursor, or every later click re-rolls that same
+  // empty month with the same seed forever. Falls back to "one month after
+  // the last event" only the very first time this org is ever ticked.
+  const cursor = getNextTickMonth(org.id) ?? addMonths(lastEvent.occurred_at, 1);
+  const monthsSinceFounding = monthsBetween(org.founded_at, cursor);
+  const rng = createRng(GENERATE_TICK_SEED + monthsSinceFounding);
 
   const newEvents = runTick(org, state, cursor, rng);
   const inserted = newEvents.map((event) => insertEvent(event));
+  setNextTickMonth(org.id, addMonths(cursor, 1));
 
   const body: EventsResponse = { events: inserted };
   res.status(201).json(body);

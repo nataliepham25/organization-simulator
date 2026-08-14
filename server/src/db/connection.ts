@@ -22,3 +22,12 @@ db.pragma("foreign_keys = ON");
 // the moment this module finishes loading, not just "eventually, once
 // someone calls migrate()".
 db.exec(SCHEMA_SQL);
+
+// SCHEMA_SQL's CREATE TABLE IF NOT EXISTS only shapes brand-new databases —
+// a db file created before next_tick_month existed needs it added explicitly.
+const organizationsColumns = db
+  .prepare(`PRAGMA table_info(organizations)`)
+  .all() as { name: string }[];
+if (!organizationsColumns.some((c) => c.name === "next_tick_month")) {
+  db.exec(`ALTER TABLE organizations ADD COLUMN next_tick_month TEXT`);
+}
